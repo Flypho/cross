@@ -1,0 +1,16 @@
+{
+  "name": "simpler-app",
+  "version": "1.0.0",
+  "description": "simple crossword application",
+  "main": "server.js",
+  "scripts": {
+    "test": "test"
+  },
+  "author": "MG",
+  "license": "ISC",
+  "dependencies" : {
+    	"express": "*",
+      "cookie-parser" : "*",
+      "body-parser" : "*"
+  	}
+}
