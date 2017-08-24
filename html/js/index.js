@@ -48,6 +48,14 @@ $('#registerButton').click(function() {
     email : $('#registerEmail').val(),
     password : $('#registerPassword').val()
   }
+  if (!thisData.email || !thisData.password){
+    alert('Wypełnij wszystkie pola');
+    return;
+  }
+  if (!isEmail(thisData.email)){
+    alert('Podano zly email');
+    return;
+  }
   $.ajax
     ({
         type: "POST",
@@ -57,12 +65,49 @@ $('#registerButton').click(function() {
         async: true,
         data: thisData,
         success: function () {
-        alert("Zarejestrowano! Przejdź do logowania"); 
+        alert("Zarejestrowano! Zaloguj się!");
         },
         error:   function(jqXHR, textStatus, errorThrown) {
-        alert("Error, status = " + textStatus + ", " +
-              "error thrown: " + errorThrown
-        );
+        alert(jqXHR.responseText);
+
   }
     })
 });
+
+$('#loginButton').click(function() {
+  var thisData = {
+    email : $('#loginEmail').val(),
+    password : $('#loginPassword').val()
+  }
+  if (!thisData.email || !thisData.password){
+    alert('Wypełnij wszystkie pola');
+    return;
+  }
+  if (!isEmail(thisData.email)){
+    alert('Podano zly email');
+    return;
+  }
+  $.ajax
+    ({
+        type: "POST",
+        //the url where you want to sent the userName and password to
+        url: '/login',
+        dataType: 'json',
+        async: true,
+        data: thisData,
+        success: function () {
+          window.location.replace('/');
+        },
+        error:   function(jqXHR, textStatus, errorThrown) {
+        alert(jqXHR.responseText);
+
+  }
+    })
+});
+
+
+
+function isEmail(email) {
+  var regex = /^([a-zA-Z0-9_.+-])+\@(([a-zA-Z0-9-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+  return regex.test(email);
+}
