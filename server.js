@@ -7,6 +7,10 @@ mongoose.Promise = global.Promise;
 mongoose.connect('mongodb://localhost/cross');
 var db = mongoose.connection;
 var User = require('./dbschemas/user.js');
+var Crossword = require('./dbschemas/crossword.js');
+var fs = require('fs');
+
+app.set('view engine', 'html');
 
 db.on('error', console.error.bind(console, 'MongoDB connection error!'));
 
@@ -22,7 +26,18 @@ app.get('/', function(req, res) {
 	if (sessionid){
 		User.findOne({'sessionid' : sessionid}, function(err, result){
 			if (result){
-				res.send("Witaj, jestes zalogowany, twoja sesja trwa");	
+				fs.readFile(__dirname + '/html/crosswords.html', 'utf8', function(err, html){
+					if(err){
+						res.send('There was an error loading your view!');
+					}else{
+						generateTable(result.relatedCrosswords, function(result){
+							html = html.replace("replacementbody", result);
+							res.send(html);
+						});
+						//res.send('Table has been generated!');
+						//res.sendFile(__dirname + '/html/crosswords.html');
+					}
+				});
 			}
 			else {
 				res.redirect('/login');
@@ -37,9 +52,90 @@ app.listen(3000, function(){
 	console.log('App listening on port 3000');
 });
 
+app.get('/crossword/:id', function(req, res){
+	res.send('Twoje id to ' + req.params.id);
+});
+
+app.post('/crossword', function(req, res){
+	var crossWord = {};
+	var examples = ['akin', 'reduce', 'city', 'issued', 'rapid', 'tabs', 'pencil', 'travel', 'elect', 'easily', 'leave', 'exam'];
+	examples.sort(function(a, b){
+		return b.length - a.length;
+	});
+	crossWord = putWordIntoCrossWord(crossWord, examples[0], 0, 0, false);
+	for (var i = 1; i < examples.length; i++){
+		var matches = checkRepeatedLetters(crossWord, examples[i]);
+		if (matches.length > 0){
+			for (var j = 0; j < matches.length; j++){
+				var putVertical = false;
+				var x = matches[j][0];
+				var y = matches[j][1];
+				if (typeof crossWord[x+1][y] === 'string'){
+					putVertical = true;
+				}
+				crossWord = putWordIntoCrossWord(crossWord, examples[i], x, y, putVertical);
+			}
+		}
+	}
+	printCrossWord(crossWord);
+	res.send('Hello crossword');
+});
+
+app.get('/addcrossword', function(req, res){
+	var cookie = req.cookies.sessionid;
+	if (cookie){
+		new Crossword({'title' : 'blablabla'}).save(function (err, thisCrossword){
+			if (err) {
+				console.error(err);
+				res.json('Blad zapisu w bazie, spróbuj ponownie');
+			} else {
+				User.findOne({'sessionid' : cookie}, function(err, result){
+					if (result){
+						result.relatedCrosswords.push(thisCrossword.id);
+						result.save();
+						res.json({ok:true});
+					} else {
+						res.json('Nie znaleziono takiego uzytkownika');
+					}
+				})
+			}
+		})
+	}
+});
+
+app.get('/addword', function(req, res){
+	var cookie = req.cookies.sessionid;
+	if (cookie){
+		var crosswordId = req.body.crossid;
+		if (crosswordId){
+			Crossword.findById(crosswordId, function(err, thisCrossword){
+				if (err){
+					res.json('Blad bazy danych');
+				} else {
+					var word, descriptionHint, audioHint, fotoHint;
+					descriptionHint = audioHint = fotoHint = undefined;
+					if (req.body.descriptionhint){
+						descriptionHint = req.body.descriptionhint;
+					}
+					if (req.body){}
+				}
+		})
+		}
+	}
+});
+
+app.post('/uploadaudio', function(req, res){
+	res.writeHead(200, {'Content-Type': 'text/html'});
+	res.write('<form action="fileupload" method="post" enctype="multipart/form-data">');
+	res.write('<input type="file" name="filetoupload"><br>');
+	res.write('<input type="submit">');
+	res.write('</form>');
+	return res.end();
+})
+
 
 app.get('/login', function(req, res) {
-	var cookie = null;//req.cookies.sessionid;
+	var cookie = req.cookies.sessionid;
 	if (cookie){
 		res.send("You got session running, redirection to main page should happen");
 	} else {
@@ -93,8 +189,102 @@ app.post('/register', function(req, res){
 app.all('/logout', function(req, res) {
 	if (req.cookies.sessionid){
 		res.clearCookie('sessionid');
+		res.send('Wylogowano prawidłowo')
 	} else {
 		res.send('Brak sesji do wygaszenia');
 	}
 });
+
+function checkRepeatedLetters(crossWordArray, stringToMatch){
+	var arrayOfMatches = [];
+	for (var i = 0; i < crossWordArray.length; i++){
+		var row = crossWordArray[i];
+		for (var j = 0; j < row.length; j++){
+			for (var index = 0; index < stringToMatch.length; index++){
+				if (crossWordArray[i][j] == stringToMatch[index]){
+					arrayOfMatches.push([i, j]);
+				}
+			}
+		}
+	}
+	return arrayOfMatches;
+}
+
+function putWordIntoCrossWord(crossWordArray, wordToPut, startX, startY, vertical){
+	for (var i = 0; i < wordToPut.length; i++){
+		crossWordArray[startX][startY] = wordToPut[i];
+		if (vertical)
+			startY++;
+		else 
+			startX++;
+	}
+	return crossWordArray;
+	//przepisz wszystko na mape bo z tymi jebanymi arrayami w JSie chuj mnie strzeli ja pierdole zajebalbym tego cwela, ktory to wymyslil
+}
+
+function printCrossWord(crossWordArray){
+	console.log('Printing');
+	for (var i = 0; i < crossWordArray.length; i++){
+		for (var j = 0; j < crossWordArray.length; j++){
+			console.log(crossWordArray[i][j]);
+			console.log('\t');
+			if (i == crossWordArray.length - 1)
+				console.log('\n');
+		}
+	}
+}
+
+function generateTable(relatedCrosswordsIds, callback){
+	var table = '<h1 class="responstable" align="center">Moje krzyżówki<h1>' +
+	'<table align="center" style="width:50%" id="crosswordlist">' +
+	'<tr>' +
+	'<th>Tytuł</th>' +
+	'<th>Tagi</th>' +
+	'</tr>';
+	var titles = [];
+	var tags = [];
+	var ids = [];
+
+	function checkStatus(){
+		if (titles.length == relatedCrosswordsIds.length)
+			return true;
+		else
+			return false;
+	}
+
+	function prepareStringTable(){
+		for (var i = 0; i < titles.length; i++){
+			var tag = tags[i];
+			if (!tag)
+				tag = 'brak';
+			else {
+				//tag = JSON.stringify(tag);
+				tag = tag.replace(/['"]+/g, '');
+			}
+			var attachement = '<tr>' +
+				'<td>' + '<a href="' +'crossword/' + ids[i] + '">' + titles[i] + '</a>' + '</td>'+
+				'<td>' + tag + '</td>'+
+				'</tr>';
+			table += attachement;
+		}
+		table += '</table>';
+		return table;
+	}
+
+	for (var i = 0; i < relatedCrosswordsIds.length; i++){
+		Crossword.findById(relatedCrosswordsIds[i], function(err, thisCrossword){
+			if (err){
+				titles.push('error');
+				tags.push('error');
+			} else {
+  				titles.push(thisCrossword.title);
+  				tags.push(JSON.stringify(thisCrossword.tags));
+  				ids.push(thisCrossword.id);
+  				if (checkStatus()){
+  					callback(prepareStringTable());
+  				}
+  			}
+  		});
+	}
+}
 
