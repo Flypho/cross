@@ -1,0 +1,30 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="css/addcrossword.css">
+</head>
+<header>
+	<h1>Dodaj krzyżówkę</h1>
+</header>
+
+<div id="form">
+
+<div class="fish" id="fish"></div>
+<div class="fish" id="fish2"></div>
+
+<form id="waterform" method="post">
+
+<div class="formgroup" id="name-form">
+    <label for="name">Tytuł krzyżówki</label>
+    <input pattern=".{3,25}"   required title="Wpisz 3-25 znaki" type="text" id="name" name="title" />
+</div>
+
+<div class="formgroup" id="email-form">
+    <label for="email">Tag lub krótki opis</label>
+    <input pattern=".{3,25}"   required title="Wpisz 3-25 znaki" type="text" id="email" name="tags" />
+</div>
+
+	<input type="submit" value="Dodaj krzyżówkę" />
+</form>
+</div>
+</html>
