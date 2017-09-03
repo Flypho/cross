@@ -3,10 +3,7 @@ var Schema = mongoose.Schema;
 
 // create a schema
 var crosswordSchema = new Schema({
-  words: { type: [String], required: false, unique: false },
-  descriptionhints: {type: [String], required: false, unique: false},
-  audiohints: {type: [String], required: false, unique: false},
-  fotohints: {type: [String], required: false, unique: false},
+  wordIds: { type: [Schema.ObjectId], required: false, unique: false },
   tags: {type: [String], required: false, unique: false},
   title: {type: String, required: true, unique: false}
 });

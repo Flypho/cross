@@ -12,6 +12,7 @@
     	"express": "*",
       "cookie-parser" : "*",
       "body-parser" : "*",
-      "mongoose" : "*"
+      "mongoose" : "*",
+      "express-formidable" : "*"
   	}
 }
