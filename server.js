@@ -108,7 +108,7 @@ app.post('/crossword/:id', formidableMiddleware, function(req, res){
 	console.log()
 	if (cookie){
 		if (req.fields){
-			var word = req.fields.word;
+			var word = req.fields.word.toUpperCase();
 			var hint = req.fields.hint;
 			var picture = null;
 			var audio = null;
@@ -129,7 +129,6 @@ app.post('/crossword/:id', formidableMiddleware, function(req, res){
 							res.status(500).send('Something broke!');
 						}
 						else if (thisCrossword){
-							console.log('Found crossword');
 							thisCrossword.wordIds.push(thisWord.id);
 							thisCrossword.save();
 							generateWordsTable(thisCrossword.wordIds, function(result){
@@ -149,6 +148,46 @@ app.post('/crossword/:id', formidableMiddleware, function(req, res){
 		res.redirect('/login');
 	}
 });
+
+app.delete('/crossword/:id', function(req, res){
+	var cookie = req.cookies.sessionid;
+	var crossId = req.params.id;
+	if (cookie){
+		if (req.body.wordId){
+			Crossword.findById(crossId, function(err, thisCrossword){
+				if (err){
+					console.log(err);
+					res.status(500).send('Blad bazy danych');
+				} else if (thisCrossword) {
+					var index = thisCrossword.wordIds.indexOf(req.body.wordId);
+					if (index < 0){
+						res.status(500).send('Nie znaleziono słowa');
+					} else {
+						if (thisCrossword.wordIds.length == 1){
+							thisCrossword.wordIds = [];
+							thisCrossword.save();
+						} else {
+							console.log('Before splice ' + thisCrossword.wordIds);
+							thisCrossword.wordIds.splice(index, 1);
+							console.log('After splice ' + thisCrossword.wordIds);
+							thisCrossword.save();
+						}
+						generateWordsTable(thisCrossword.wordIds, function(result){
+							console.log(result);
+							res.send(result);
+						});
+					}
+				} else {
+					res.status(500).send('Blad bazy danych, brak danych w bazie');
+				}
+			})
+		} else {
+			res.status(500).send('Cos poszlo nie tak, spróbuj jeszcze raz');
+		}
+	} else {
+		res.redirect('/login');
+	}
+})
 
 /*
 app.post('/crossword', function(req, res){
@@ -233,6 +272,18 @@ app.get('/addword', function(req, res){
 	}
 });
 
+app.get('/play/:id', function(req, res){
+	fs.readFile(__dirname + '/html/play.html', 'utf8', function(err, html){
+		if(err){
+			res.send('There was an error loading your view!');
+		}else{
+			var table = generateEmptyTable(20, 20);
+			html = html.replace("TU MA BYĆ KRZYŻÓWKA", table);
+			res.send(html);
+		}
+	});
+})
+
 app.post('/uploadaudio', function(req, res){
 	res.writeHead(200, {'Content-Type': 'text/html'});
 	res.write('<form action="fileupload" method="post" enctype="multipart/form-data">');
@@ -241,6 +292,7 @@ app.post('/uploadaudio', function(req, res){
 	res.write('</form>');
 	return res.end();
 })
+
 
 
 app.get('/login', function(req, res) {
@@ -349,6 +401,7 @@ function generateCrosswordTable(relatedCrosswordsIds, callback){
 	'<tr>' +
 	'<th>Tytuł</th>' +
 	'<th>Tagi</th>' +
+	'<th>Graj</th>' +
 	'</tr>';
 	var size = relatedCrosswordsIds.length;
 	var dbArray = [];
@@ -377,6 +430,7 @@ function generateCrosswordTable(relatedCrosswordsIds, callback){
 			var attachement = '<tr>' +
 			'<td>' + '<a href="' +'crossword/' + dbArray[i][2] + '">' + dbArray[i][0] + '</a>' + '</td>'+
 			'<td>' + dbArray[i][1] + '</td>'+
+			'<td>' + '<a href="/play/' + dbArray[i][2] + '" class="btn btn-info" role="button">Graj</a>' + '</td>' +
 			'</tr>';
 			table += attachement;
 		}
@@ -413,6 +467,7 @@ function generateWordsTable(relatedWordsIds, callback){
 	'<th>Podpowiedź</th>' +
 	'<th>Obrazek</th>' +
 	'<th>Media</th>' +
+	'<th>Usuń</th>' +
 	'</tr>';
 	var size = relatedWordsIds.length;
 	var dbArray = [];
@@ -445,6 +500,7 @@ function generateWordsTable(relatedWordsIds, callback){
 			'<td>' + dbArray[i][1] + '</td>'+
 			'<td>' + picture + '</td>'+
 			'<td>' + audio + '</td>'+
+			'<td>' + '<button type="button" class="btn btn-primary deletewordbutton"' + ' id="' + dbArray[i][4] + '">Usuń</button>' + '</td>' +
 			'</tr>';
 			table += attachement;
 		}
@@ -461,7 +517,7 @@ function generateWordsTable(relatedWordsIds, callback){
 			if (err){
 				dbArray.push(['error', 'error', 'error', 'error']);
 			} else {
-				dbArray.push([thisWord.word, thisWord.hint, thisWord.picture, thisWord.audio]);
+				dbArray.push([thisWord.word, thisWord.hint, thisWord.picture, thisWord.audio, thisWord.id]);
 				//titles.push(thisCrossword.title);
 				//tags.push(JSON.stringify(thisCrossword.tags));
 				//ids.push(thisCrossword.id);
@@ -471,5 +527,47 @@ function generateWordsTable(relatedWordsIds, callback){
 			}
 		});
 	}
+}
+
+/*
+<table class="tg">
+  <tr>
+    <th class="tg-yw4l"><br></th>
+    <th class="tg-yw4l"></th>
+    <th class="tg-yw4l"></th>
+    <th class="tg-yw4l"></th>
+  </tr>
+  <tr>
+    <td class="tg-yw4l"></td>
+    <td class="tg-yw4l"></td>
+    <td class="tg-yw4l"></td>
+    <td class="tg-yw4l"></td>
+  </tr>
+  <tr>
+    <td class="tg-yw4l"></td>
+    <td class="tg-yw4l"></td>
+    <td class="tg-yw4l"></td>
+    <td class="tg-yw4l"></td>
+  </tr>
+</table>
+*/
+function generateEmptyTable(width, height){
+	var table = '<table>';
+	var tableInsides = '';
+	for (var i = 0; i < height; i++){
+		tableInsides += '<tr>';
+		for (var j = 0; j < width; j++){
+			tableInsides += '<td>' + getRandomChar() + '</td>';
+		}
+		tableInsides += '</tr>';
+	}
+	table = table + tableInsides + '</table>';
+	return table;
+}
+
+function getRandomChar() {
+  var text = "";
+  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	return possible.charAt(Math.floor(Math.random() * possible.length));
 }
 
