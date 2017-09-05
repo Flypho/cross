@@ -189,33 +189,6 @@ app.delete('/crossword/:id', function(req, res){
 	}
 })
 
-/*
-app.post('/crossword', function(req, res){
-	var crossWord = {};
-	var examples = ['akin', 'reduce', 'city', 'issued', 'rapid', 'tabs', 'pencil', 'travel', 'elect', 'easily', 'leave', 'exam'];
-	examples.sort(function(a, b){
-		return b.length - a.length;
-	});
-	crossWord = putWordIntoCrossWord(crossWord, examples[0], 0, 0, false);
-	for (var i = 1; i < examples.length; i++){
-		var matches = checkRepeatedLetters(crossWord, examples[i]);
-		if (matches.length > 0){
-			for (var j = 0; j < matches.length; j++){
-				var putVertical = false;
-				var x = matches[j][0];
-				var y = matches[j][1];
-				if (typeof crossWord[x+1][y] === 'string'){
-					putVertical = true;
-				}
-				crossWord = putWordIntoCrossWord(crossWord, examples[i], x, y, putVertical);
-			}
-		}
-	}
-	printCrossWord(crossWord);
-	res.send('Hello crossword');
-});
-*/
-
 app.get('/addcrossword', function(req, res){
 	var cookie = req.cookies.sessionid;
 	if (cookie){
@@ -273,6 +246,7 @@ app.get('/addword', function(req, res){
 });
 
 app.get('/play/:id', function(req, res){
+	genCrossword();
 	fs.readFile(__dirname + '/html/play.html', 'utf8', function(err, html){
 		if(err){
 			res.send('There was an error loading your view!');
@@ -355,45 +329,6 @@ app.all('/logout', function(req, res) {
 		res.send('Brak sesji do wygaszenia');
 	}
 });
-
-function checkRepeatedLetters(crossWordArray, stringToMatch){
-	var arrayOfMatches = [];
-	for (var i = 0; i < crossWordArray.length; i++){
-		var row = crossWordArray[i];
-		for (var j = 0; j < row.length; j++){
-			for (var index = 0; index < stringToMatch.length; index++){
-				if (crossWordArray[i][j] == stringToMatch[index]){
-					arrayOfMatches.push([i, j]);
-				}
-			}
-		}
-	}
-	return arrayOfMatches;
-}
-
-function putWordIntoCrossWord(crossWordArray, wordToPut, startX, startY, vertical){
-	for (var i = 0; i < wordToPut.length; i++){
-		crossWordArray[startX][startY] = wordToPut[i];
-		if (vertical)
-			startY++;
-		else 
-			startX++;
-	}
-	return crossWordArray;
-	//przepisz wszystko na mape bo z tymi jebanymi arrayami w JSie chuj mnie strzeli ja pierdole zajebalbym tego cwela, ktory to wymyslil
-}
-
-function printCrossWord(crossWordArray){
-	console.log('Printing');
-	for (var i = 0; i < crossWordArray.length; i++){
-		for (var j = 0; j < crossWordArray.length; j++){
-			console.log(crossWordArray[i][j]);
-			console.log('\t');
-			if (i == crossWordArray.length - 1)
-				console.log('\n');
-		}
-	}
-}
 
 function generateCrosswordTable(relatedCrosswordsIds, callback){
 	var table = '<h1 class="responstable" align="center">Moje krzyżówki<h1>' +
@@ -529,28 +464,6 @@ function generateWordsTable(relatedWordsIds, callback){
 	}
 }
 
-/*
-<table class="tg">
-  <tr>
-    <th class="tg-yw4l"><br></th>
-    <th class="tg-yw4l"></th>
-    <th class="tg-yw4l"></th>
-    <th class="tg-yw4l"></th>
-  </tr>
-  <tr>
-    <td class="tg-yw4l"></td>
-    <td class="tg-yw4l"></td>
-    <td class="tg-yw4l"></td>
-    <td class="tg-yw4l"></td>
-  </tr>
-  <tr>
-    <td class="tg-yw4l"></td>
-    <td class="tg-yw4l"></td>
-    <td class="tg-yw4l"></td>
-    <td class="tg-yw4l"></td>
-  </tr>
-</table>
-*/
 function generateEmptyTable(width, height){
 	var table = '<table>';
 	var tableInsides = '';
@@ -566,8 +479,226 @@ function generateEmptyTable(width, height){
 }
 
 function getRandomChar() {
-  var text = "";
-  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	var text = "";
+	var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	return possible.charAt(Math.floor(Math.random() * possible.length));
+}
+
+function genCrossword(){
+	var words = ['TABLESPOONFUL', 'DINGALING', 'ICE', 'TESTATOR', 'AGHA', 'PESTER', 'QUIFFS', 'OURS', 'CONGRESS', 'LIKEASHOT', 'ZAP', 'MASSIFCENTRAL',
+	'TAINT', 'PROBLEM', 'BREASTSTROKES', 'ENDGAMES', 'WADI', 'PINION', 'GOTHIC', 'OVAL', 'TUNGSTEN', 'FRIDGEFREEZER', 'LOGJAMS', 'SEPAL'];
+	words.sort(function(a, b){
+		if(a.length < b.length) return 1;
+		if(a.length > b.length) return -1;
+		return 0;
+	});
+	var crosswordArray = matrix(6, 8, '_');
+	var testWords = ['BUBU', 'TORA', 'UBOT'];
+	insertWordIntoArray(testWords[0], crosswordArray, 0, 1, false);
+	insertWordIntoArray(testWords[1], crosswordArray, 2, 1, false);
+	var intersections = findPossibleIntersections(testWords[2], crosswordArray);
+	evaluateIntersectionQuality(testWords[2], crosswordArray, intersections);
+	console.log('intersections for the word: ' + testWords[2]);
+	console.log(intersections);
+	filterIntersections(intersections);
+	printCrosswordArray(crosswordArray);
+}
+
+function printCrosswordArray(crosswordArray){
+	var height = crosswordArray.length;
+	var width = crosswordArray[0].length;
+	var result = '';
+
+	for (var i = 0; i < height; i++){
+		for (var j = 0; j < width; j++){
+			result += crosswordArray[i][j];
+			if (j == width - 1){
+				result += '\n';
+			} else {
+				result += ' ';
+			}
+		}
+	}
+	console.log(result);
+}
+
+function matrix( rows, cols, defaultValue){
+	var arr = [];
+	for(var i=0; i < rows; i++){
+		arr.push([]);
+		arr[i].push( new Array(cols));
+		for(var j=0; j < cols; j++){
+			arr[i][j] = defaultValue;
+		}
+	}
+	return arr;
+}
+
+
+function insertWordIntoArray(word, crosswordArray, startingRow, startingColumn, down){
+	var height = crosswordArray.length;
+	var width = crosswordArray[0].length;
+	console.log('DIMENSIONS ' + 'height: ' + height + ' width ' + width);
+	if (down){
+		if (startingRow + word.length > height){
+			return -1;
+		} else {
+			for (var i = 0; i < word.length; i++){
+				crosswordArray[startingRow + i][startingColumn] = word[i];
+			}
+		}
+	} else {
+		if (startingColumn + word.length > width){
+			return -1;
+		} else {
+			for (var i = 0; i < word.length; i++){
+				crosswordArray[startingRow][startingColumn + i] = word[i];
+			}
+		}
+	}
+}
+
+function findPossibleIntersections(word, crosswordArray){
+	var height = crosswordArray.length;
+	var width = crosswordArray[0].length;
+	var results = [];
+	for (var letterIndex = 0; letterIndex < word.length; letterIndex++) {
+		for (var row = 0; row < height; row++){
+			for (var column = 0; column < width; column++){
+				if (crosswordArray[row][column] == word[letterIndex]){
+					results.push([letterIndex, row, column, checkIntersectionOrientation(crosswordArray, row, column)]);
+				}
+			}
+		}
+	}
+	return results;
+}
+
+function evaluateIntersectionQuality(word, crosswordArray, intersectionsArray){
+	var height = crosswordArray.length;
+	var width = crosswordArray[0].length;
+	for (var i = 0; i < intersectionsArray.length; i ++){
+		var intersectionRow = intersectionsArray[i][1];
+		var intersectionColumn = intersectionsArray[i][2];
+		var intersectionWordIndex = intersectionsArray[i][0];
+		var crossIntersection = false;
+		if (intersectionsArray[i][3] == 'cross'){
+			crossIntersection = true;
+		}
+		var startingRow, startingColumn, endRow, endColumn;
+		if (intersectionWordIndex == 0){
+			startingRow = intersectionRow;
+			startingColumn = intersectionColumn;
+		} else if (crossIntersection){
+			startingRow = intersectionRow;
+			startingColumn = intersectionColumn - intersectionWordIndex;
+		} else {
+			startingRow = intersectionRow - intersectionWordIndex;
+			startingColumn = intersectionColumn;
+		}
+
+		if (crossIntersection){
+			endRow = startingRow;
+			endColumn = startingColumn + word.length - 1;
+		} else {
+			endRow = startingRow + word.length - 1;
+			endColumn = startingColumn;
+		}
+
+		if (startingRow < 0 || endRow >= height || startingColumn < 0 || endColumn >= width){
+			intersectionsArray[i].push(-1);
+		} else {
+			var qualityValue = 0;
+			if (intersectionWordIndex != 0 && intersectionWordIndex != word.length - 1){
+				qualityValue++;
+			}
+			if (crossIntersection){
+				if ((startingColumn != 0 && crosswordArray[startingRow][startingColumn+1] != '_' && crosswordArray[startingRow][startingColumn-1] != '_') || (endColumn != 0 && crosswordArray[startingRow][endColumn+1] != '_' && crosswordArray[startingRow][endColumn-1] != '_')){
+					qualityValue = -1;
+				} else {
+					for (var j = startingColumn; j < endColumn; j++){
+						if (crosswordArray[startingRow][j] != '_'){
+							var found = false;
+							for (var l = 0; l < intersectionsArray.length; l++){
+								if (intersectionsArray[l][1] == startingRow && intersectionsArray[l][2] == j){
+									found = true;
+								} 
+							}
+							if (found){
+								qualityValue += 2;
+							} else {
+								qualityValue = -1;
+								break;
+							}
+						}
+					}
+				}
+			} else {
+				if ((startingRow != 0 && crosswordArray[startingRow-1][startingColumn] != '_' && crosswordArray[startingRow+1][startingColumn] != '_') || (endRow != height-1 && crosswordArray[endRow+1][endColumn] != '_' && crosswordArray[endRow-1][endColumn] != '_')){
+					qualityValue = -1;
+				} else {
+					for (var m = startingRow; m <= endRow; m++){
+						if (crosswordArray[m][startingColumn] != '_'){
+							var found = false;
+							for (var n = 0; n < intersectionsArray.length; n++){
+								if (intersectionsArray[n][1] == m && intersectionsArray[n][2] == startingColumn){
+									found = true;
+								}
+							}
+							if (found){
+								qualityValue += 2;
+							} else {
+								qualityValue = -1;
+								break;
+							}
+						}
+					}
+				}
+			}
+			intersectionsArray[i].push(qualityValue);
+		}
+	}
+}
+
+function checkIntersectionOrientation(crosswordArray, row, column){
+	var height = crosswordArray.length;
+	var width = crosswordArray[0].length;
+	var firstArg = -1;
+	var secondArg = +1;
+	if (column == 0){
+		firstArg = 2;
+	} else if (column == width - 1){
+		secondArg = -2;
+	}
+	if (crosswordArray[row][column + firstArg] != '_' || crosswordArray[row][column + secondArg] != '_'){
+		//var testColumn1 = column + firstArg;
+		//var testColumn2 = column + secondArg;
+		//console.log('DOWN LOG: intersekcja w ' + row + ',' + column + ' przeszukuje punkty: ' + row + ',' + testColumn1 + ' ' + row + ',' + testColumn2);
+		return 'down';
+	} else {
+		//var testRow1 = row + firstArg;
+		//var testRow2 = row + secondArg;
+		//console.log('CROSS LOG: intersekcja w ' + row + ',' + column + ' przeszukuje punkty: ' + testRow2 + ',' + column + ' ' + testRow2 + ',' + column);
+		return 'cross'
+	}
+
+}
+
+function filterIntersections(intersectionsArray){
+	var indicesToSave = [];
+	var maxValue = 0;
+	for (var i = 0; i < intersectionsArray.length; i++){
+		if (intersectionsArray[i][4] > maxValue){
+			indicesToSave.push(i);
+			maxValue = intersectionsArray[i][4];
+		}
+	}	
+	console.log(indicesToSave);
+	var result = [];
+	for (var i = 0; i < indicesToSave.length; i++){
+		result.push(intersectionsArray[indicesToSave[i]]);
+	}
+	console.log('AFTER FILTER');
+	console.log(result);
 }
 
