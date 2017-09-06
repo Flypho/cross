@@ -492,15 +492,23 @@ function genCrossword(){
 		if(a.length > b.length) return -1;
 		return 0;
 	});
-	var crosswordArray = matrix(6, 8, '_');
-	var testWords = ['BUBU', 'TORA', 'UBOT'];
-	insertWordIntoArray(testWords[0], crosswordArray, 0, 1, false);
-	insertWordIntoArray(testWords[1], crosswordArray, 2, 1, false);
-	var intersections = findPossibleIntersections(testWords[2], crosswordArray);
-	evaluateIntersectionQuality(testWords[2], crosswordArray, intersections);
-	console.log('intersections for the word: ' + testWords[2]);
-	console.log(intersections);
-	filterIntersections(intersections);
+	var crosswordArray = matrix(15, 15, '_');
+	var testWords = words;
+	var startingRow = Math.floor(crosswordArray.length/2);
+	var startingColumn = Math.floor(crosswordArray[0].length/2 - testWords[0].length/2);
+	console.log('starting: ' + startingRow + ',' + startingColumn);
+	insertWordIntoArray(testWords[0], crosswordArray, startingRow, startingColumn, false);
+	for (var i = 1; i < testWords.length; i++){
+		var intersections = findPossibleIntersections(testWords[i], crosswordArray);
+		evaluateIntersectionQuality(testWords[i], crosswordArray, intersections);
+		if (intersections.length > 0){
+			intersections = filterIntersections(intersections);
+			if (intersections.length > 0){
+				var coordinates = calculateStartingCoordinates(testWords[i], intersections);
+				insertWordIntoArray(testWords[i], crosswordArray, coordinates[0], coordinates[1], coordinates[2]);
+			}
+		}
+	}
 	printCrosswordArray(crosswordArray);
 }
 
@@ -575,6 +583,7 @@ function findPossibleIntersections(word, crosswordArray){
 }
 
 function evaluateIntersectionQuality(word, crosswordArray, intersectionsArray){
+	var testLog = true;
 	var height = crosswordArray.length;
 	var width = crosswordArray[0].length;
 	for (var i = 0; i < intersectionsArray.length; i ++){
@@ -612,52 +621,90 @@ function evaluateIntersectionQuality(word, crosswordArray, intersectionsArray){
 			if (intersectionWordIndex != 0 && intersectionWordIndex != word.length - 1){
 				qualityValue++;
 			}
+			var firstValue = -1;
+			var secondValue = 1;
+			if (startingRow == 0 || endRow == 0 || startingColumn == 0 || endColumn == 0){
+				firstValue = 1; // nie mozna minusow
+			}
+			if (startingRow == (height-1) || endRow == (height - 1) || startingColumn == (width -1) || endColumn == (width-1)){
+				secondValue = -1; //nie mozna plusow
+			}
+
+			0,0 - nie mozna minusow
+			0,max nie mozna minusa, nie mozna plusa
+			max, 0 - nie mozna plusa, nie mozna minusa
+			max, max - nie monza plusow
+
+			0,0
+			1,1
+			//kurde wez to sobie rozkmin na ostro bo ja jebie
+			0, max
+			1, 
+
+
+			if (testLog){
+				console.log('Rows and columns:')
+				console.log('START: ' + startingRow + ',' + startingColumn);
+				console.log('END: ' + endRow + ',' + endColumn);
+				var test1 = startingRow + firstValue;
+				var test2 = startingRow + secondValue;
+				var test3 = endRow + firstValue;
+				var test4 = endRow + secondValue;
+				console.log('VALUES' + firstValue + ',' + secondValue);
+				console.log('height:= ' + height + ' width= ' + width);
+				console.log('INDICES THAT WILL BE READ: ' + test1 + ',' + startingColumn + ' ' + test2 + ',' + startingColumn + ' ' + test3 + ',' + endColumn + ' ' + test4 + ',' + endColumn);
+			}
+
 			if (crossIntersection){
-				if ((startingColumn != 0 && crosswordArray[startingRow][startingColumn+1] != '_' && crosswordArray[startingRow][startingColumn-1] != '_') || (endColumn != 0 && crosswordArray[startingRow][endColumn+1] != '_' && crosswordArray[startingRow][endColumn-1] != '_')){
+				if (((crosswordArray[startingRow+firstValue][startingColumn] != '_' || crosswordArray[startingRow + secondValue][startingColumn] != '_')) || 
+					((endRow != height-1 && endRow != 0) && 
+						(crosswordArray[endRow + firstValue][endColumn] != '_' || crosswordArray[endRow + secondValue][endColumn] != '_'))){
 					qualityValue = -1;
-				} else {
-					for (var j = startingColumn; j < endColumn; j++){
-						if (crosswordArray[startingRow][j] != '_'){
-							var found = false;
-							for (var l = 0; l < intersectionsArray.length; l++){
-								if (intersectionsArray[l][1] == startingRow && intersectionsArray[l][2] == j){
-									found = true;
-								} 
-							}
-							if (found){
-								qualityValue += 2;
-							} else {
-								qualityValue = -1;
-								break;
-							}
-						}
-					}
-				}
 			} else {
-				if ((startingRow != 0 && crosswordArray[startingRow-1][startingColumn] != '_' && crosswordArray[startingRow+1][startingColumn] != '_') || (endRow != height-1 && crosswordArray[endRow+1][endColumn] != '_' && crosswordArray[endRow-1][endColumn] != '_')){
-					qualityValue = -1;
-				} else {
-					for (var m = startingRow; m <= endRow; m++){
-						if (crosswordArray[m][startingColumn] != '_'){
-							var found = false;
-							for (var n = 0; n < intersectionsArray.length; n++){
-								if (intersectionsArray[n][1] == m && intersectionsArray[n][2] == startingColumn){
-									found = true;
-								}
-							}
-							if (found){
-								qualityValue += 2;
-							} else {
-								qualityValue = -1;
-								break;
-							}
+				for (var j = startingColumn; j < endColumn; j++){
+					if (crosswordArray[startingRow][j] != '_'){
+						var found = false;
+						for (var l = 0; l < intersectionsArray.length; l++){
+							if (intersectionsArray[l][1] == startingRow && intersectionsArray[l][2] == j){
+								found = true;
+							} 
+						}
+						if (found){
+							qualityValue += 2;
+						} else {
+							qualityValue = -1;
+							break;
 						}
 					}
 				}
 			}
-			intersectionsArray[i].push(qualityValue);
+		} else {
+			if (((crosswordArray[startingRow][startingColumn + firstValue] != '_' || crosswordArray[startingRow][startingColumn + secondValue] != '_')) ||
+				(endColumn != width-1 && 
+					(crosswordArray[endRow][endColumn + firstValue] != '_' || crosswordArray[endRow][endColumn + secondValue] != '_'))){
+				qualityValue = -1;
+		} else {
+			for (var m = startingRow; m <= endRow; m++){
+				if (crosswordArray[m][startingColumn] != '_'){
+					var found = false;
+					for (var n = 0; n < intersectionsArray.length; n++){
+						if (intersectionsArray[n][1] == m && intersectionsArray[n][2] == startingColumn){
+							found = true;
+						}
+					}
+					if (found){
+						qualityValue += 2;
+					} else {
+						qualityValue = -1;
+						break;
+					}
+				}
+			}
 		}
 	}
+	intersectionsArray[i].push(qualityValue);
+}
+}
 }
 
 function checkIntersectionOrientation(crosswordArray, row, column){
@@ -688,17 +735,44 @@ function filterIntersections(intersectionsArray){
 	var indicesToSave = [];
 	var maxValue = 0;
 	for (var i = 0; i < intersectionsArray.length; i++){
-		if (intersectionsArray[i][4] > maxValue){
+		if (intersectionsArray[i][4] > maxValue || (intersectionsArray[i][4] == maxValue && Math.random() >= 0.5)){
+			indicesToSave.splice(indicesToSave.indexOf(maxValue), 1);
 			indicesToSave.push(i);
 			maxValue = intersectionsArray[i][4];
 		}
 	}	
-	console.log(indicesToSave);
-	var result = [];
+	var results = [];
 	for (var i = 0; i < indicesToSave.length; i++){
-		result.push(intersectionsArray[indicesToSave[i]]);
+		results.push(intersectionsArray[indicesToSave[i]]);
 	}
-	console.log('AFTER FILTER');
-	console.log(result);
+	return results;
+}
+
+function calculateStartingCoordinates(word, intersectionsArray){
+	var index = 0;
+	var results = [];
+	var startingRow;
+	var startingColumn;
+	var isOrientationDown = false;
+	if (intersectionsArray.length > 1){
+		var index = Math.random() * (intersectionsArray - 1);
+	}
+	if (intersectionsArray[index][3] == 'down'){
+		isOrientationDown = true;
+	}
+	if (isOrientationDown){
+		startingColumn = intersectionsArray[index][2];
+		startingRow = intersectionsArray[index][1] - intersectionsArray[index][0];
+	} else {
+		startingColumn = intersectionsArray[index][2] - intersectionsArray[index][0];
+		startingRow = intersectionsArray[index][1];
+	}
+
+	results.push(startingRow);
+	results.push(startingColumn);
+	results.push(isOrientationDown);
+	console.log('calculated coordinates');
+	console.log(results);
+	return results;
 }
 
