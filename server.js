@@ -246,12 +246,14 @@ app.get('/addword', function(req, res){
 });
 
 app.get('/play/:id', function(req, res){
-	genCrossword();
+	var wordsArray = ['TABLESPOONFUL', 'DINGALING', 'ICE', 'TESTATOR', 'AGHA', 'PESTER', 'QUIFFS', 'OURS', 'CONGRESS', 'LIKEASHOT', 'ZAP', 'MASSIFCENTRAL',
+	'TAINT', 'PROBLEM', 'BREASTSTROKES', 'ENDGAMES', 'WADI', 'PINION', 'GOTHIC', 'OVAL', 'TUNGSTEN', 'FRIDGEFREEZER', 'LOGJAMS', 'SEPAL'];
+	var crosswordArray = generateCrosswordArray(wordsArray);
 	fs.readFile(__dirname + '/html/play.html', 'utf8', function(err, html){
 		if(err){
 			res.send('There was an error loading your view!');
 		}else{
-			var table = generateEmptyTable(20, 20);
+			var table = generatePlayableCrossword(crosswordArray);
 			html = html.replace("TU MA BYĆ KRZYŻÓWKA", table);
 			res.send(html);
 		}
@@ -464,13 +466,19 @@ function generateWordsTable(relatedWordsIds, callback){
 	}
 }
 
-function generateEmptyTable(width, height){
+function generatePlayableCrossword(crosswordArray){
+	var height = crosswordArray.length;
+	var width = crosswordArray[0].length;
 	var table = '<table>';
 	var tableInsides = '';
 	for (var i = 0; i < height; i++){
 		tableInsides += '<tr>';
 		for (var j = 0; j < width; j++){
-			tableInsides += '<td>' + getRandomChar() + '</td>';
+			if (crosswordArray[i][j] == '_'){
+				tableInsides += '<td bgcolor="#D3D3D3">' + ' ' + '</td>';
+			} else {
+				tableInsides += '<td>' + crosswordArray[i][j] + '</td>';
+			}
 		}
 		tableInsides += '</tr>';
 	}
@@ -484,32 +492,29 @@ function getRandomChar() {
 	return possible.charAt(Math.floor(Math.random() * possible.length));
 }
 
-function genCrossword(){
-	var words = ['TABLESPOONFUL', 'DINGALING', 'ICE', 'TESTATOR', 'AGHA', 'PESTER', 'QUIFFS', 'OURS', 'CONGRESS', 'LIKEASHOT', 'ZAP', 'MASSIFCENTRAL',
-	'TAINT', 'PROBLEM', 'BREASTSTROKES', 'ENDGAMES', 'WADI', 'PINION', 'GOTHIC', 'OVAL', 'TUNGSTEN', 'FRIDGEFREEZER', 'LOGJAMS', 'SEPAL'];
-	words.sort(function(a, b){
+function generateCrosswordArray(wordsArray){
+	wordsArray.sort(function(a, b){
 		if(a.length < b.length) return 1;
 		if(a.length > b.length) return -1;
 		return 0;
 	});
-	var crosswordArray = matrix(15, 15, '_');
-	var testWords = words;
+	var crosswordArray = matrix(20, 20, '_');
 	var startingRow = Math.floor(crosswordArray.length/2);
-	var startingColumn = Math.floor(crosswordArray[0].length/2 - testWords[0].length/2);
-	console.log('starting: ' + startingRow + ',' + startingColumn);
-	insertWordIntoArray(testWords[0], crosswordArray, startingRow, startingColumn, false);
-	for (var i = 1; i < testWords.length; i++){
-		var intersections = findPossibleIntersections(testWords[i], crosswordArray);
-		evaluateIntersectionQuality(testWords[i], crosswordArray, intersections);
+	var startingColumn = Math.floor(crosswordArray[0].length/2 - wordsArray[0].length/2);
+	insertWordIntoArray(wordsArray[0], crosswordArray, startingRow, startingColumn, false);
+	for (var i = 1; i < wordsArray.length; i++){
+		var intersections = findPossibleIntersections(wordsArray[i], crosswordArray);
+		evaluateIntersectionQuality(wordsArray[i], crosswordArray, intersections);
 		if (intersections.length > 0){
 			intersections = filterIntersections(intersections);
 			if (intersections.length > 0){
-				var coordinates = calculateStartingCoordinates(testWords[i], intersections);
-				insertWordIntoArray(testWords[i], crosswordArray, coordinates[0], coordinates[1], coordinates[2]);
+				var coordinates = calculateStartingCoordinates(wordsArray[i], intersections);
+				insertWordIntoArray(wordsArray[i], crosswordArray, coordinates[0], coordinates[1], coordinates[2]);
 			}
 		}
 	}
-	printCrosswordArray(crosswordArray);
+	//printCrosswordArray(crosswordArray);
+	return crosswordArray;
 }
 
 function printCrosswordArray(crosswordArray){
@@ -546,7 +551,7 @@ function matrix( rows, cols, defaultValue){
 function insertWordIntoArray(word, crosswordArray, startingRow, startingColumn, down){
 	var height = crosswordArray.length;
 	var width = crosswordArray[0].length;
-	console.log('DIMENSIONS ' + 'height: ' + height + ' width ' + width);
+	//console.log('DIMENSIONS ' + 'height: ' + height + ' width ' + width);
 	if (down){
 		if (startingRow + word.length > height){
 			return -1;
@@ -583,7 +588,10 @@ function findPossibleIntersections(word, crosswordArray){
 }
 
 function evaluateIntersectionQuality(word, crosswordArray, intersectionsArray){
-	var testLog = true;
+	var testLog = false;
+	if (word == 'ZAP'){
+		testLog = true;
+	}
 	var height = crosswordArray.length;
 	var width = crosswordArray[0].length;
 	for (var i = 0; i < intersectionsArray.length; i ++){
@@ -623,49 +631,34 @@ function evaluateIntersectionQuality(word, crosswordArray, intersectionsArray){
 			}
 			var firstValue = -1;
 			var secondValue = 1;
-			if (startingRow == 0 || endRow == 0 || startingColumn == 0 || endColumn == 0){
-				firstValue = 1; // nie mozna minusow
-			}
-			if (startingRow == (height-1) || endRow == (height - 1) || startingColumn == (width -1) || endColumn == (width-1)){
-				secondValue = -1; //nie mozna plusow
-			}
-
-			0,0 - nie mozna minusow
-			0,max nie mozna minusa, nie mozna plusa
-			max, 0 - nie mozna plusa, nie mozna minusa
-			max, max - nie monza plusow
-
-			0,0
-			1,1
-			//kurde wez to sobie rozkmin na ostro bo ja jebie
-			0, max
-			1, 
-
-
-			if (testLog){
-				console.log('Rows and columns:')
-				console.log('START: ' + startingRow + ',' + startingColumn);
-				console.log('END: ' + endRow + ',' + endColumn);
-				var test1 = startingRow + firstValue;
-				var test2 = startingRow + secondValue;
-				var test3 = endRow + firstValue;
-				var test4 = endRow + secondValue;
-				console.log('VALUES' + firstValue + ',' + secondValue);
-				console.log('height:= ' + height + ' width= ' + width);
-				console.log('INDICES THAT WILL BE READ: ' + test1 + ',' + startingColumn + ' ' + test2 + ',' + startingColumn + ' ' + test3 + ',' + endColumn + ' ' + test4 + ',' + endColumn);
-			}
+			var specialCase = false;
 
 			if (crossIntersection){
-				if (((crosswordArray[startingRow+firstValue][startingColumn] != '_' || crosswordArray[startingRow + secondValue][startingColumn] != '_')) || 
+				var startingRowIndex1 = startingRow + firstValue;
+				var startingRowIndex2 = startingRow + secondValue;
+				var endRowIndex1 = endRow + firstValue;
+				var endRowIndex2 = endRow + secondValue;
+				if (testLog){
+					//console.log('INDICES READ CROSS: ' + startingRowIndex1 + ',' + startingColumn + ' ' + startingRowIndex2 + ',' + startingColumn + ' ' + endRowIndex1 + ',' + endColumn + ' ' + endRowIndex2 + ',' + endColumn);
+				}
+				if (startingRowIndex1 < 0 || startingRowIndex1 > height - 1 || endRowIndex1 < 0 || endRowIndex1 > height - 1){
+					startingRowIndex1 = startingRowIndex2;
+					endRowIndex1 = endRowIndex2;
+				} else if (startingRowIndex2 < 0 || startingRowIndex2 > height - 1 || endRowIndex2 < 0 || endRowIndex2 > height - 1){
+					startingRowIndex2 = startingRowIndex1;
+					endRowIndex2 = endRowIndex1;
+				}
+				if (((crosswordArray[startingRowIndex1][startingColumn] != '_' || crosswordArray[startingRowIndex2][startingColumn] != '_')) || 
 					((endRow != height-1 && endRow != 0) && 
-						(crosswordArray[endRow + firstValue][endColumn] != '_' || crosswordArray[endRow + secondValue][endColumn] != '_'))){
+						(crosswordArray[endRowIndex1][endColumn] != '_' || crosswordArray[endRowIndex2][endColumn] != '_')) ||
+					((startingColumn != 0 && crosswordArray[startingRow][startingColumn-1] != 0) || (endColumn != width - 1 && crosswordArray[endRow][endColumn+1] != '_'))){
 					qualityValue = -1;
 			} else {
 				for (var j = startingColumn; j < endColumn; j++){
 					if (crosswordArray[startingRow][j] != '_'){
 						var found = false;
 						for (var l = 0; l < intersectionsArray.length; l++){
-							if (intersectionsArray[l][1] == startingRow && intersectionsArray[l][2] == j){
+							if (intersectionsArray[l][1] == startingRow && intersectionsArray[l][2] == j && (crosswordArray[startingRow][j] == word[intersectionWordIndex] || crosswordArray[startingRow][j] == '_')){
 								found = true;
 							} 
 						}
@@ -679,28 +672,53 @@ function evaluateIntersectionQuality(word, crosswordArray, intersectionsArray){
 				}
 			}
 		} else {
-			if (((crosswordArray[startingRow][startingColumn + firstValue] != '_' || crosswordArray[startingRow][startingColumn + secondValue] != '_')) ||
-				(endColumn != width-1 && 
-					(crosswordArray[endRow][endColumn + firstValue] != '_' || crosswordArray[endRow][endColumn + secondValue] != '_'))){
-				qualityValue = -1;
-		} else {
-			for (var m = startingRow; m <= endRow; m++){
-				if (crosswordArray[m][startingColumn] != '_'){
-					var found = false;
-					for (var n = 0; n < intersectionsArray.length; n++){
-						if (intersectionsArray[n][1] == m && intersectionsArray[n][2] == startingColumn){
-							found = true;
+			var startingColumnIndex1 = startingColumn + firstValue;
+			var startingColumnIndex2 = startingColumn + secondValue;
+			var endColumnIndex1 = endColumn + firstValue;
+			var endColumnIndex2 = endColumn + secondValue;
+				//console.log('INDICES READ DOWN: ' + startingRow + ',' + startingColumnIndex1 + ' ' + startingRow + ',' + startingColumnIndex2 + ' ' + endRow + ',' + endColumnIndex1 + ' ' + endRow + ',' + endColumnIndex2);
+				if (startingColumnIndex1 < 0 || startingColumnIndex1 > width - 1 || endColumnIndex1 < 0 || endColumnIndex1 > width - 1){
+					startingColumnIndex1 = startingColumnIndex2;
+					endColumnIndex1 = endColumnIndex2;
+				} else if (startingColumnIndex2 < 0 || startingColumnIndex2 > width - 1 || endColumnIndex2 < 0 || endColumnIndex2 > width - 1){
+					startingColumnIndex2 = startingColumnIndex1;
+					endColumnIndex2 = endColumnIndex1;
+				}
+				if (((crosswordArray[startingRow][startingColumnIndex1] != '_' || crosswordArray[startingRow][startingColumnIndex2] != '_')) ||
+					(endColumn != width-1 && 
+						(crosswordArray[endRow][endColumnIndex1] != '_' || crosswordArray[endRow][endColumnIndex2] != '_')) || 
+					(startingRow != 0 && crosswordArray[startingRow-1][startingColumn] != '_') || endRow != height - 1 && crosswordArray[endRow+1][endColumnIndex1] != '_'){	
+					qualityValue = -1;
+			} else {
+				for (var m = startingRow; m <= endRow; m++){
+					if (crosswordArray[m][startingColumn] != '_'){
+						var found = false;
+						for (var n = 0; n < intersectionsArray.length; n++){
+							if (intersectionsArray[n][1] == m && intersectionsArray[n][2] == startingColumn && (crosswordArray[m][startingColumn] == word[intersectionWordIndex] || crosswordArray[m][startingColumn] == '_')){
+								found = true;
+							}
 						}
-					}
-					if (found){
-						qualityValue += 2;
-					} else {
-						qualityValue = -1;
-						break;
+						if (found){
+							qualityValue += 2;
+						} else {
+							qualityValue = -1;
+							break;
+						}
 					}
 				}
 			}
-		}
+		/*
+		if (word == 'ZAP'){
+			if (qualityValue > 0){
+				console.log('Cos poszlo nie tak');
+				console.log('Rows and columns:')
+				console.log('word= ' + word);
+				console.log('START: ' + startingRow + ',' + startingColumn);
+				console.log('END: ' + endRow + ',' + endColumn);
+				console.log('height:= ' + height + ' width= ' + width);
+				console.log('quality for word=' + qualityValue);
+			}
+		}*/
 	}
 	intersectionsArray[i].push(qualityValue);
 }
@@ -771,8 +789,8 @@ function calculateStartingCoordinates(word, intersectionsArray){
 	results.push(startingRow);
 	results.push(startingColumn);
 	results.push(isOrientationDown);
-	console.log('calculated coordinates');
-	console.log(results);
+	//console.log('calculated coordinates');
+	//console.log(results);
 	return results;
 }
 
