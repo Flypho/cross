@@ -248,16 +248,27 @@ app.get('/addword', function(req, res){
 app.get('/play/:id', function(req, res){
 	var wordsArray = ['TABLESPOONFUL', 'DINGALING', 'ICE', 'TESTATOR', 'AGHA', 'PESTER', 'QUIFFS', 'OURS', 'CONGRESS', 'LIKEASHOT', 'ZAP', 'MASSIFCENTRAL',
 	'TAINT', 'PROBLEM', 'BREASTSTROKES', 'ENDGAMES', 'WADI', 'PINION', 'GOTHIC', 'OVAL', 'TUNGSTEN', 'FRIDGEFREEZER', 'LOGJAMS', 'SEPAL'];
-	var crosswordArray = generateCrosswordArray(wordsArray);
-	fs.readFile(__dirname + '/html/play.html', 'utf8', function(err, html){
-		if(err){
-			res.send('There was an error loading your view!');
-		}else{
-			var table = generatePlayableCrossword(crosswordArray);
-			html = html.replace("TU MA BYĆ KRZYŻÓWKA", table);
-			res.send(html);
+	var wordIds;
+	var crosswordId = req.params.id;
+	getCrosswordWordIds(crosswordId, function(result){
+		if (result == -1){
+			res.send('Error loading your crossword, sorry');
+		} else {
+			getWordsFromIdArray(result, function(words){
+				var crossAndIdArray = generateCrosswordArray(words);
+				fs.readFile(__dirname + '/html/play.html', 'utf8', function(err, html){
+					if(err){
+						res.send('There was an error loading your view!');
+					}else{
+						var table = generatePlayableCrossword(crossAndIdArray);
+						html = html.replace("TU MA BYĆ KRZYŻÓWKA", table);
+						res.send(html);
+					}
+				});
+			})
 		}
 	});
+
 })
 
 app.post('/uploadaudio', function(req, res){
@@ -466,7 +477,9 @@ function generateWordsTable(relatedWordsIds, callback){
 	}
 }
 
-function generatePlayableCrossword(crosswordArray){
+function generatePlayableCrossword(crossAndIdArray){
+	var crosswordArray = crossAndIdArray[0];
+	var idArray = crossAndIdArray[1];
 	var height = crosswordArray.length;
 	var width = crosswordArray[0].length;
 	var table = '<table>';
@@ -477,7 +490,11 @@ function generatePlayableCrossword(crosswordArray){
 			if (crosswordArray[i][j] == '_'){
 				tableInsides += '<td bgcolor="#D3D3D3">' + ' ' + '</td>';
 			} else {
-				tableInsides += '<td>' + crosswordArray[i][j] + '</td>';
+				var classString = "cell ";
+				for (var k = 0; k < idArray[i][j].length; k++){
+					classString = classString.concat(idArray[i][j][k] + ' ');
+				}
+				tableInsides += '<td class="' + classString + '">' + crosswordArray[i][j] + '</td>'; //'&nbsp;'
 			}
 		}
 		tableInsides += '</tr>';
@@ -494,27 +511,30 @@ function getRandomChar() {
 
 function generateCrosswordArray(wordsArray){
 	wordsArray.sort(function(a, b){
-		if(a.length < b.length) return 1;
-		if(a.length > b.length) return -1;
+		if(a.word.length < b.word.length) return 1;
+		if(a.word.length > b.word.length) return -1;
 		return 0;
 	});
-	var crosswordArray = matrix(20, 20, '_');
+	var width = wordsArray[0].word.length;
+	var height = width + 3;
+	var crosswordArray = matrix(height, width, '_');
+	var idArray = matrix (height, width, 0);
 	var startingRow = Math.floor(crosswordArray.length/2);
-	var startingColumn = Math.floor(crosswordArray[0].length/2 - wordsArray[0].length/2);
-	insertWordIntoArray(wordsArray[0], crosswordArray, startingRow, startingColumn, false);
+	var startingColumn = Math.floor(crosswordArray[0].length/2 - wordsArray[0].word.length/2);
+	insertWordIntoArray(wordsArray[0].word, crosswordArray, startingRow, startingColumn, false, idArray, wordsArray[0]._id);
 	for (var i = 1; i < wordsArray.length; i++){
-		var intersections = findPossibleIntersections(wordsArray[i], crosswordArray);
-		evaluateIntersectionQuality(wordsArray[i], crosswordArray, intersections);
+		var intersections = findPossibleIntersections(wordsArray[i].word, crosswordArray);
+		evaluateIntersectionQuality(wordsArray[i].word, crosswordArray, intersections);
 		if (intersections.length > 0){
 			intersections = filterIntersections(intersections);
 			if (intersections.length > 0){
-				var coordinates = calculateStartingCoordinates(wordsArray[i], intersections);
-				insertWordIntoArray(wordsArray[i], crosswordArray, coordinates[0], coordinates[1], coordinates[2]);
+				var coordinates = calculateStartingCoordinates(wordsArray[i].word, intersections);
+				insertWordIntoArray(wordsArray[i].word, crosswordArray, coordinates[0], coordinates[1], coordinates[2], idArray, wordsArray[i]._id);
 			}
 		}
 	}
 	//printCrosswordArray(crosswordArray);
-	return crosswordArray;
+	return [crosswordArray, idArray];
 }
 
 function printCrosswordArray(crosswordArray){
@@ -548,7 +568,7 @@ function matrix( rows, cols, defaultValue){
 }
 
 
-function insertWordIntoArray(word, crosswordArray, startingRow, startingColumn, down){
+function insertWordIntoArray(word, crosswordArray, startingRow, startingColumn, down, idArray, id){
 	var height = crosswordArray.length;
 	var width = crosswordArray[0].length;
 	//console.log('DIMENSIONS ' + 'height: ' + height + ' width ' + width);
@@ -558,6 +578,11 @@ function insertWordIntoArray(word, crosswordArray, startingRow, startingColumn, 
 		} else {
 			for (var i = 0; i < word.length; i++){
 				crosswordArray[startingRow + i][startingColumn] = word[i];
+				if (idArray[startingRow + i][startingColumn] != 0){
+					idArray[startingRow + i][startingColumn].push(id);
+				} else {
+					idArray[startingRow + i][startingColumn] = [id];
+				}
 			}
 		}
 	} else {
@@ -566,6 +591,11 @@ function insertWordIntoArray(word, crosswordArray, startingRow, startingColumn, 
 		} else {
 			for (var i = 0; i < word.length; i++){
 				crosswordArray[startingRow][startingColumn + i] = word[i];
+				if (idArray[startingRow][startingColumn + i] != 0){
+					idArray[startingRow][startingColumn + i].push(id);
+				} else {
+					idArray[startingRow][startingColumn + i] = [id];
+				}
 			}
 		}
 	}
@@ -792,5 +822,26 @@ function calculateStartingCoordinates(word, intersectionsArray){
 	//console.log('calculated coordinates');
 	//console.log(results);
 	return results;
+}
+
+function getCrosswordWordIds(crosswordId, callback){
+	Crossword.findById(crosswordId, function(err, thisCrossword){
+		if (err){
+			console.log(err);
+			callback(-1);
+		} else {
+			callback(thisCrossword.wordIds);
+		}
+	});
+}
+
+function getWordsFromIdArray(idArray, callback){
+	Word.find().where('_id').in(idArray).exec(function (err, result){
+		if (err){
+			console.log(err)
+		} else {
+			callback(result);
+		}
+	});
 }
 
