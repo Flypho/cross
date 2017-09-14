@@ -8,6 +8,7 @@ mongoose.connect('mongodb://localhost/cross');
 var db = mongoose.connection;
 var User = require('./dbschemas/user.js');
 var Crossword = require('./dbschemas/crossword.js');
+var GuestCrossword = require('./dbschemas/guestcrossword.js');
 var Word = require('./dbschemas/word.js');
 var fs = require('fs');
 var formidable = require('express-formidable');
@@ -31,9 +32,6 @@ db.on('error', console.error.bind(console, 'MongoDB connection error!'));
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-//app.use(formidable({
-  //uploadDir: uploadDir
-//}));
 
 app.use("/js",  express.static(__dirname + '/html/js'));
 app.use("/css",  express.static(__dirname + '/html/css'));
@@ -65,6 +63,30 @@ app.get('/', function(req, res) {
 		res.redirect('/login');
 	}
 });
+
+app.get('/servepicture/:id', function(req, res){
+	var fileId = req.params.id;
+	fs.readFile(__dirname + '/uploads/' + fileId, function(err, file){
+		if (err){
+			res.send('Error');
+		} else {
+			res.contentType('image/jpg');
+			res.end(file, 'binary');
+		}
+	});
+})
+
+app.get('/serveaudio/:id', function(req, res){
+	var fileId = req.params.id;
+	fs.readFile(__dirname + '/uploads/' + fileId, function(err, file){
+		if (err){
+			res.send('Error');
+		} else {
+			res.contentType('audio/mpeg');
+			res.end(file, 'binary');
+		}
+	});
+})
 
 app.listen(3000, function(){
 	console.log('App listening on port 3000');
@@ -99,6 +121,16 @@ app.get('/crossword/:id', function(req, res){
 		});
 	} else{
 		res.redirect('/login');
+	}
+});
+
+app.get('/hint/:id', function(req, res){
+	var cookie = req.cookies.sessionid;
+	var wordId = req.params.id;
+	if (cookie){
+		getHintPanel(wordId, function(result){
+			res.send(result);
+		})
 	}
 });
 
@@ -245,6 +277,26 @@ app.get('/addword', function(req, res){
 	}
 });
 
+app.post('/verifyword', function(req, res){
+	var wordId = req.body.wordid;
+	var word = req.body.word.toUpperCase();
+	if (!word || !wordId){
+		res.status(500).send('Nieznany błąd');
+	} else {
+		Word.findById(wordId, function(err, thisWord){
+			if (err){
+				res.status(500).send('Błąd bazy danych');
+			} else {
+				if (thisWord.word == word){
+					res.send('ok');
+				} else{
+					res.send('not');
+				}
+			}
+		});
+	}
+})
+
 app.get('/play/:id', function(req, res){
 	var wordsArray = ['TABLESPOONFUL', 'DINGALING', 'ICE', 'TESTATOR', 'AGHA', 'PESTER', 'QUIFFS', 'OURS', 'CONGRESS', 'LIKEASHOT', 'ZAP', 'MASSIFCENTRAL',
 	'TAINT', 'PROBLEM', 'BREASTSTROKES', 'ENDGAMES', 'WADI', 'PINION', 'GOTHIC', 'OVAL', 'TUNGSTEN', 'FRIDGEFREEZER', 'LOGJAMS', 'SEPAL'];
@@ -255,21 +307,49 @@ app.get('/play/:id', function(req, res){
 			res.send('Error loading your crossword, sorry');
 		} else {
 			getWordsFromIdArray(result, function(words){
-				var crossAndIdArray = generateCrosswordArray(words);
-				fs.readFile(__dirname + '/html/play.html', 'utf8', function(err, html){
-					if(err){
-						res.send('There was an error loading your view!');
-					}else{
-						var table = generatePlayableCrossword(crossAndIdArray);
-						html = html.replace("TU MA BYĆ KRZYŻÓWKA", table);
-						res.send(html);
-					}
-				});
+				if (words.length < 5){
+					res.send('Wpisałeś zbyt mało słów, powiększ listę słów do co najmniej 5');
+				} else {
+					var crossAndIdArray = generateCrosswordArray(words);
+					fs.readFile(__dirname + '/html/play.html', 'utf8', function(err, html){
+						if(err){
+							res.send('There was an error loading your view!');
+						}else{
+							var table = generatePlayableCrossword(crossAndIdArray);
+							html = html.replace("TU MA BYĆ KRZYŻÓWKA", table);
+							getCrosswordTitle(crosswordId, function(result){
+								html = html.replace("CrosswordTitle", result);
+								res.send(html);
+							});
+							//res.send(html);
+						}
+					});
+				}
 			})
 		}
 	});
+});
 
+app.post('/savecrossword', function(req, res){
+	var crosswordTable = req.body.table;
+	var middleIndex = Math.round((crosswordTable.length - 1) / 2)
+	var part1 = crosswordTable.substr(0, middleIndex);
+	var part2 = crosswordTable.substr(middleIndex);
+	console.log(part1.length + " " + part2.length + " " + crosswordTable.length);
+	new GuestCrossword({table1 : part1, table2 : part2}).save(function (err, savedTable){
+		if (err) {
+			console.error(err);
+			res.status(500).send('Blad bazy danych');
+		} else {
+			res.send(savedTable.id);
+		}
+	});
 })
+
+app.get('/playguest/:id', function(req, res){
+	var playableCrosswordTable = req.params.id;
+	res.send('hello world');
+});
 
 app.post('/uploadaudio', function(req, res){
 	res.writeHead(200, {'Content-Type': 'text/html'});
@@ -324,7 +404,7 @@ app.post('/register', function(req, res){
 					} else {
 						res.json({ok:true});
 					}
-				})
+				});
 			}
 		})
 		
@@ -482,7 +562,7 @@ function generatePlayableCrossword(crossAndIdArray){
 	var idArray = crossAndIdArray[1];
 	var height = crosswordArray.length;
 	var width = crosswordArray[0].length;
-	var table = '<table>';
+	var table = '<table id="playablecrossword">';
 	var tableInsides = '';
 	for (var i = 0; i < height; i++){
 		tableInsides += '<tr>';
@@ -494,7 +574,7 @@ function generatePlayableCrossword(crossAndIdArray){
 				for (var k = 0; k < idArray[i][j].length; k++){
 					classString = classString.concat(idArray[i][j][k] + ' ');
 				}
-				tableInsides += '<td class="' + classString + '">' + crosswordArray[i][j] + '</td>'; //'&nbsp;'
+				tableInsides += '<td style="text-transform: uppercase" class="' + classString + '">' + '&nbsp;' + '</td>'; //'&nbsp;'
 			}
 		}
 		tableInsides += '</tr>';
@@ -841,6 +921,38 @@ function getWordsFromIdArray(idArray, callback){
 			console.log(err)
 		} else {
 			callback(result);
+		}
+	});
+}
+
+function getHintPanel(wordId, callback){
+	var table = '';
+	Word.findById(wordId, function(err, thisWord){
+		if (err){
+			callback(err);
+		} else {
+			table += '<div>Podpowiedź:' + thisWord.hint + '</div>';
+			if (thisWord.picture){
+				//table += '<img src="/uploads/' + thisWord.picture + '" alt="twój_obrazek" style="width:50px; height:50px;">' 
+				table += '<a href="/servepicture/' + thisWord.picture + '" target="_blank">Kliknij, aby wyświetlić pomoc w postaci obrazka</a>'
+			}
+			if (thisWord.audio){
+				//table += '<audio src="/uploads/' + thisWord.audio +'" preload controls></audio>'; 
+				table += '<a href="/serveaudio/' + thisWord.audio + '" target="_blank">Kliknij, aby wyświetlić pomoc w postaci multimediów</a>'
+			}
+			table += '<button type="button" id="generatelinkbutton" class="btn btn-primary">Generuj link do krzyżówki</button>'
+			table +='<input id="linkinput" type="text" class="field left" readonly>';
+			callback(table);
+		}
+	});
+}
+
+function getCrosswordTitle(crosswordId, callback){
+	Crossword.findById(crosswordId, function(err, thisCrossword){
+		if (err){
+			callback(err);
+		} else {
+			callback(thisCrossword.title);
 		}
 	});
 }
