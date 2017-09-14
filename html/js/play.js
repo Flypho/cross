@@ -1,8 +1,23 @@
 $(document).on ("click", ".cell", function () {
   resetAllSelectedCells();
   var selectedClass = $(this).attr("class").split(' ')[1];
-  console.log(selectedClass);
-  $('.' + selectedClass).attr("bgcolor", "#99bbff");
+  var wordArray = $('.' + selectedClass).toArray();
+  if ($('.' + selectedClass).attr("bgcolor") == '#ff8080'){
+    for (var i = 0; i < wordArray.length; i++){
+      if ($(wordArray[i]).attr('bgcolor') != '#99ff99'){
+        $(wordArray[i]).attr("bgcolor", '#ffffff');
+        $(wordArray[i]).html('&nbsp;');
+      }
+    }
+  } else if ($('.' + selectedClass).attr("bgcolor") == '#99ff99'){
+    return;
+  }
+  for (var i = 0; i < wordArray.length; i++){
+    if ($(wordArray[i]).attr('bgcolor') == '#ffffff' || !$(wordArray[i]).attr('bgcolor')){
+      $(wordArray[i]).attr("bgcolor", "#99bbff");
+    }
+  }
+  //$('.' + selectedClass).attr("bgcolor", "#99bbff");
   $.get('/hint/' + selectedClass, function(data, status){
     $("#sidebar-wrapper").empty();
     $("#sidebar-wrapper").append(data);
@@ -16,7 +31,7 @@ function resetAllSelectedCells(){
 }
 
 function setEditPointer(selectedClass){
-	var selectedArray = $('.' + selectedClass).attr("bgcolor", "#99bbff").toArray();
+	var selectedArray = $('.' + selectedClass).toArray();//attr("bgcolor", "#99bbff").toArray();
 	var cursor = 0;
 	var end = selectedArray.length - 1;
   if ($(selectedArray[end]).html().replace('&nbsp;', '').length > 0){
@@ -28,13 +43,18 @@ function setEditPointer(selectedClass){
       break;
       cursor++;
     }
+    var startingPosition = cursor;
     $(selectedArray[cursor]).prop('contenteditable', true);
     $(selectedArray[cursor]).trigger('make_editable');
     $(selectedArray[cursor]).trigger('focus');
-    $(selectedArray[cursor]).on('input', function(input) {
+    $(selectedArray[cursor]).on('keydown', function(e) {
+      if( e.which == 8 || e.which == 46 ){
+        ;
+      }
+    });
+    $(selectedArray[cursor]).on('input', function(event) {
       var currentTdValue = $(selectedArray[cursor]).html().replace('&nbsp;', '');
       $(selectedArray[cursor]).html(currentTdValue);
-      console.log(currentTdValue);
       if (cursor < end){
         $(selectedArray[cursor]).prop('contenteditable', false);
         cursor++;
@@ -47,34 +67,32 @@ function setEditPointer(selectedClass){
         for (var m = 0; m < selectedArray.length; m++){
           word += $(selectedArray[m]).html();
         }
-        console.log('word ' + word + ', ' + 'wordId ' + selectedClass);
         $.post( "/verifyword", { 'wordid' : selectedClass, 'word' : word }, function( data ) {
           if (data == 'ok'){
             $('.' + selectedClass).attr("bgcolor", "#99ff99");
           } else {
-            $('.' + selectedClass).attr("bgcolor", "#ff8080");
+            for (var i = 0; i < selectedArray.length; i++){
+              if ($(selectedArray[i]).attr('bgcolor') != '#99ff99'){
+                $(selectedArray[i]).attr("bgcolor", "#ff8080");
+              }
+            }
+            //$('.' + selectedClass).attr("bgcolor", "#ff8080");
           }
         });
       }
+      $(selectedArray[cursor-1]).unbind();
     });
   }
 
   setCursorAt(selectedArray, cursor);
-
-  for (var i = 0; i < selectedArray.length; i++){
-    var col = $(selectedArray[i]).parent().children().index($(selectedArray[i]));
-    var row = $(selectedArray[i]).parent().parent().children().index($(selectedArray[i]).parent());
-  		//console.log('ROW: ' + row + ' COLUMN: ' + col);
-   }
- }
+}
 
 
- $(document).on ("click", "#generatelinkbutton", function () {
+$(document).on ("click", "#generatelinkbutton", function () {
   var guestLinkToArray;
   var crossString = $('<div>').append($('#playablecrossword').clone()).html(); 
   
   $.post( "/savecrossword", { 'table' : crossString}, function(data) {
-    console.log(data);
+    $('#linkinput').val(data);
   });
-  $('#linkinput').val('elo');
 });

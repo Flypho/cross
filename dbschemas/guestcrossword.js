@@ -3,8 +3,7 @@ var Schema = mongoose.Schema;
 
 // create a schema
 var guestCrosswordSchema = new Schema({
-  table1: { type: String, required: true, unique: false },
-  table2: { type: String, required: true, unique: false }
+  table: { type: String, required: true, unique: false }
 });
 
 // the schema is useless so far

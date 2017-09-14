@@ -17,6 +17,7 @@ var formidableMiddleware = formidable({
 	uploadDir: uploadDir
 });
 var path = require('path');
+var zlib = require('zlib');
 
 
 if (!fs.existsSync(uploadDir)){
@@ -332,23 +333,35 @@ app.get('/play/:id', function(req, res){
 
 app.post('/savecrossword', function(req, res){
 	var crosswordTable = req.body.table;
-	var middleIndex = Math.round((crosswordTable.length - 1) / 2)
-	var part1 = crosswordTable.substr(0, middleIndex);
-	var part2 = crosswordTable.substr(middleIndex);
-	console.log(part1.length + " " + part2.length + " " + crosswordTable.length);
-	new GuestCrossword({table1 : part1, table2 : part2}).save(function (err, savedTable){
+	var deflated = zlib.deflateSync(crosswordTable).toString('base64');
+	new GuestCrossword({'table' : deflated}).save(function (err, savedTable){
 		if (err) {
 			console.error(err);
 			res.status(500).send('Blad bazy danych');
 		} else {
-			res.send(savedTable.id);
+			res.send('http://localhost:3000/playguest/' + savedTable.id);
 		}
 	});
 })
 
 app.get('/playguest/:id', function(req, res){
-	var playableCrosswordTable = req.params.id;
-	res.send('hello world');
+	var crosswordId = req.params.id;
+	GuestCrossword.findById(crosswordId, function(err, result){
+		if (err){
+			res.send(err)
+		} else {
+			var tableString = zlib.inflateSync(new Buffer(result.table, 'base64')).toString();
+			fs.readFile(__dirname + '/html/play.html', 'utf8', function(err, html){
+				if(err){
+					res.send('There was an error loading your view!');
+				}else{
+					html = html.replace("TU MA BYĆ KRZYŻÓWKA", tableString);
+					html = html.replace("CrosswordTitle", "Krzyżówka gościa");
+					res.send(html);
+				}
+			});
+		}
+	});
 });
 
 app.post('/uploadaudio', function(req, res){
