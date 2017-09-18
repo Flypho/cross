@@ -9,8 +9,18 @@ $(document).on ("click", ".cell", function () {
         $(wordArray[i]).html('&nbsp;');
       }
     }
-  } else if ($('.' + selectedClass).attr("bgcolor") == '#99ff99'){
-    return;
+  } else {
+    var selectedArray = $('.' + selectedClass).toArray();
+    var colored = 0;
+    for (var m = 0; m < selectedArray.length; m++){
+      if ($(selectedArray[m]).attr('bgcolor') == '#99ff99'){
+        colored++;
+      }
+    }
+    if (colored == selectedArray.length){
+      console.log('wchodzi tutaj');
+      return;
+    }
   }
   for (var i = 0; i < wordArray.length; i++){
     if ($(wordArray[i]).attr('bgcolor') == '#ffffff' || !$(wordArray[i]).attr('bgcolor')){
