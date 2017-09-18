@@ -28,11 +28,15 @@ body {
     height: 100%;
     margin-left: -250px;
     overflow-y: auto;
-    background: #F5F5F5;
+    background: rgba(19, 35, 47, 0.9);
+    color: #fff;
     -webkit-transition: all 0.5s ease;
     -moz-transition: all 0.5s ease;
     -o-transition: all 0.5s ease;
     transition: all 0.5s ease;
+}
+.input {
+    color: #000;
 }
 
 #wrapper.toggled #sidebar-wrapper {
@@ -139,17 +143,15 @@ table {
 }   
 
 th {
-    background: url(https://jackrugile.com/images/misc/noise-diagonal.png), linear-gradient(#777, #444);
-    border-left: 1px solid #555;
-    border-right: 1px solid #777;
-    border-top: 1px solid #555;
-    border-bottom: 1px solid #333;
+    background: url(https://jackrugile.com/images/misc/noise-diagonal.png) #1ab188;
+    border: 1px solid #1ab188;
     box-shadow: inset 0 1px 0 #999;
     color: #fff;
-  font-weight: bold;
+    font-weight: bold;
     padding: 10px 15px;
     position: relative;
     text-shadow: 0 1px 0 #000;  
+    text-align: center;
 }
 
 th:after {
@@ -220,4 +222,17 @@ tbody:hover td {
 tbody:hover tr:hover td {
     color: #444;
     text-shadow: 0 1px 0 #fff;
+}
+.deletewordbutton {
+    width: 100%;
+    height: 100%;
+    background: rgba(19, 35, 47, 0.9);
+    border: solid 1px rgba(19, 35, 47, 0.9);
+    color: #fff;
+    
+}
+.deletewordbutton:hover {
+    background: #179b77;
+    border: solid 1px #179b77;
+
 }

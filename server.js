@@ -481,7 +481,7 @@ function generateCrosswordTable(relatedCrosswordsIds, callback){
 			var attachement = '<tr>' +
 			'<td>' + '<a href="' +'crossword/' + dbArray[i][2] + '">' + dbArray[i][0] + '</a>' + '</td>'+
 			'<td>' + dbArray[i][1] + '</td>'+
-			'<td>' + '<a href="/play/' + dbArray[i][2] + '" class="btn btn-info" role="button">Graj</a>' + '</td>' +
+			'<td>' + '<a href="/play/' + dbArray[i][2] + '" class="btn button" role="button">Graj</a>' + '</td>' +
 			'</tr>';
 			table += attachement;
 		}
