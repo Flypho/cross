@@ -20,25 +20,28 @@
     <div id="wrapper" class="toggled">
 
         <!-- Sidebar -->
-        <div id="sidebar-wrapper">
+        <div id="sidebar-wrapper" class="well well-sm">
             <form id="waterform" method="post" enctype="multipart/form-data">
 
-                <div class="formgroup" id="name-form">
-                    <label for="name">Hasło</label>
-                    <input pattern=".{1,25}"   required title="Wpisz 3-25 znaki" type="text" id="word" name="word" />
+                <div class="form-group" id="name-form">
+                    <label class="control-label" for="name">Hasło</label>
+                    <div>
+                        <input pattern=".{1,25}"   required title="Wpisz 3-25 znaki" type="text" id="word" name="word" />                </div>
                 </div>
 
-                <div class="formgroup" id="email-form">
-                    <label for="email">Podpowiedź słowna</label>
-                    <input pattern=".{1,25}"   required title="Wpisz 3-25 znaki" type="text" id="hint" name="hint" />
+                <div class="form-group" id="email-form">
+                    <label class="control-label" for="email">Podpowiedź słowna</label>
+                    <div>
+                        <input pattern=".{1,25}"   required title="Wpisz 3-25 znaki" type="text" id="hint" name="hint" />
+                    </div>
                 </div>
 
-                <div class="formgroup" id="email-form">
+                <div class="form-group" id="email-form">
                     <label for="email">Dodaj obrazek</label>
                     <input type="file" id="picture" name="picture" accept="image/*">
                 </div>
 
-                <div class="formgroup" id="email-form">
+                <div class="form-group" id="email-form">
                     <label for="email">Dodaj plik audio</label>
                     <input type="file" id="audio" name="audio" accept="audio/*">
                 </div>
@@ -64,7 +67,7 @@
     <!-- /#wrapper -->
 
     <!-- Bootstrap core JavaScript -->
-    
+
 
     <!-- Menu Toggle Script -->
     <script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
