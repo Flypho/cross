@@ -309,7 +309,17 @@ app.get('/play/:id', function(req, res){
 		} else {
 			getWordsFromIdArray(result, function(words){
 				if (words.length < 5){
-					res.send('Wpisałeś zbyt mało słów, powiększ listę słów do co najmniej 5');
+					res.send('<html><head> \n' +
+                        '\n' +
+                        '<script>\n' +
+                        'function goBack() {\n' +
+                        '    window.history.back();\n' +
+                        '}\n' +
+                        '</script> ' +
+						'<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"' +
+						' integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">' +
+						'</head>' +
+						'<body>Wpisałeś zbyt mało słów, powiększ listę słów do co najmniej 5  <button class="btn btn-info" onclick="goBack()">Powrót</button></body></html>');
 				} else {
 					var crossAndIdArray = generateCrosswordArray(words);
 					fs.readFile(__dirname + '/html/play.html', 'utf8', function(err, html){
@@ -502,7 +512,7 @@ function generateCrosswordTable(relatedCrosswordsIds, callback){
 
 function generateWordsTable(relatedWordsIds, callback){
 	var table = 
-	'<table align="center" style="width:50%" id="wordslist">' +
+	'<table class="table" align="center" style="width:50%" id="wordslist">' +
 	'<tr>' +
 	'<th>Hasło</th>' +
 	'<th>Podpowiedź</th>' +
