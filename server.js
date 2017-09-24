@@ -18,6 +18,7 @@ var formidableMiddleware = formidable({
 });
 var path = require('path');
 var zlib = require('zlib');
+var parse = require('csv-parse');
 
 
 if (!fs.existsSync(uploadDir)){
@@ -200,13 +201,10 @@ app.delete('/crossword/:id', function(req, res){
 							thisCrossword.wordIds = [];
 							thisCrossword.save();
 						} else {
-							console.log('Before splice ' + thisCrossword.wordIds);
 							thisCrossword.wordIds.splice(index, 1);
-							console.log('After splice ' + thisCrossword.wordIds);
 							thisCrossword.save();
 						}
-						generateWordsTable(thisCrossword.wordIds, function(result){
-							console.log(result);
+						generateWordsTable(thisCrossword.wordIds, function(result){;
 							res.send(result);
 						});
 					}
@@ -255,6 +253,59 @@ app.post('/addcrossword', function(req, res){
 		res.send('Brak istniejącej sesji, zaloguj się ponownie');
 	}
 });
+
+app.post('/uploadwordsfile/:id', formidableMiddleware, function(req, res){
+	var uploadedwords = 0;
+	var crossId = req.params.id;
+	var cookie = req.cookies.sessionid;
+	var sent = false;
+	if (cookie){
+		if (req.files.wordsfile){
+			var inputPath = req.files.wordsfile.path;
+			fs.readFile(inputPath, function (err, fileData) {
+				parse(fileData, {trim: true}, function(err, data) {
+					if (err){
+						console.log(err);
+					} else {
+						for (var i = 0; i < data.length; i++){
+							var word = data[i][0];
+							var hint = data[i][1];
+							if (!word || word == '' || !hint || hint == ''){
+								res.status(500).send('Błędny plik');
+								sent = true;
+								break;
+							}
+							new Word({'word' : word, 'hint' : hint}).save(function (err, thisWord){
+								if (err) {
+									console.error(err);
+									res.status(500).send('Blad bazy danych main');
+								} else {
+									Crossword.findById(crossId, function(err, thisCrossword){
+										if (err){
+											console.log(err);
+											res.status(500).send('Something broke!');
+										}
+										else if (thisCrossword){
+											thisCrossword.wordIds.push(thisWord.id);
+											thisCrossword.save();
+										} else {
+											console.log(crossId);
+											res.status(500).send('Nie znaleziono takiej krzyżówki!');
+										}
+									})
+								}
+							})
+						}
+						if (!sent)
+							res.send('OK');
+					}
+				})
+			});
+		} else{
+			res.status(500).send('Nieprawidłowy plik lub jego brak');
+		}
+	}
+})
 
 
 app.get('/addword', function(req, res){
@@ -310,12 +361,12 @@ app.get('/play/:id', function(req, res){
 			getWordsFromIdArray(result, function(words){
 				if (words.length < 5){
 					res.send('<html><head> \n' +
-                        '\n' +
-                        '<script>\n' +
-                        'function goBack() {\n' +
-                        '    window.history.back();\n' +
-                        '}\n' +
-                        '</script> ' +
+						'\n' +
+						'<script>\n' +
+						'function goBack() {\n' +
+						'    window.history.back();\n' +
+						'}\n' +
+						'</script> ' +
 						'<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"' +
 						' integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">' +
 						'</head>' +
@@ -979,4 +1030,5 @@ function getCrosswordTitle(crosswordId, callback){
 		}
 	});
 }
+
 

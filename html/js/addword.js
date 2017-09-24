@@ -35,6 +35,37 @@ $('#addwordbutton').click(function(event) {
   });
 });
 
+$('#addwordsfilebutton').click(function(event) {
+  event.preventDefault();
+  var form = $("#addwordfileform")[0];
+  var formData = new FormData(form);
+  if ($("#wordsfile").val() == ''){
+    console.log('empty form');
+    return;
+  }
+  var crossId = window.location.href.split("/").pop();
+  console.log(crossId);
+  var address = 'http://localhost:3000/uploadwordsfile/' + crossId;
+  $.ajax({
+    url: address,
+    method: "POST",
+    data: formData,
+    processData: false,
+    contentType: false,
+    success: function(result){
+      $('#audio').val(null);
+      $('#picture').val(null);
+      $('#hint').val(null);
+      $('#word').val(null);
+      $('#wordsfile').val(null);
+      location.reload();
+    },
+    error: function(error){
+      alert(error.responseText + ', niektóre twoje hasła mogły zostać dodane nieprawidłowo, odśwież stronę'); 
+    }
+  });
+});
+
 $(document).on ("click", ".deletewordbutton", function () {
   console.log('Delete word button on!');
   var address = window.location.href;
@@ -46,7 +77,7 @@ $(document).on ("click", ".deletewordbutton", function () {
       $('#wordslist').replaceWith(result);
     },
     error: function(error){
-      alert(JSON.stringify(error)); 
+      alert(error.responseText); 
     }
   });
 });
